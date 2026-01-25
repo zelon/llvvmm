@@ -10,24 +10,20 @@
 
   <body>
     <main class="container">
-      <h1>Welcome to Tauri</h1>
-
-      <div class="row">
-        <a href="https://tauri.app" target="_blank">
-          <img src="/assets/tauri.svg" class="logo tauri" alt="Tauri logo" />
-        </a>
-        <a
-          href="https://developer.mozilla.org/en-US/docs/Web/JavaScript"
-          target="_blank"
-        >
-          <img
-            src="/assets/javascript.svg"
-            class="logo vanilla"
-            alt="JavaScript logo"
-          />
-        </a>
-      </div>
-      <p>Click on the Tauri logo to learn more about the framework</p>
+      <table>
+        <tr>
+          <th><h1>Logical Volume Status</h1></th>
+        </tr>
+        <tr>
+          <td><p id="lv-status">lvdisplay result will be here</p><td>
+        </tr>
+        <tr>
+          <td><h1>Volume Group Status</h1></td>
+        </tr>
+        <tr>
+          <td><pre id="vg-status">vgdisplay result will be here</pre></td>
+        </tr>
+      </table>
 
       <form class="row" id="greet-form">
         <input id="greet-input" placeholder="Enter a name..." />
