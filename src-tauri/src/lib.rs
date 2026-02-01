@@ -1,4 +1,5 @@
 mod pvs;
+mod executor;
 
 use serde::{Deserialize, Serialize};
 
@@ -45,27 +46,10 @@ fn get_console_result_to_html(cmd: &str) -> String {
         .unwrap_or_else(|err| format!("Failed to execute {}: {}", cmd, err))
 }
 
-fn get_command_result_to_json(cmd: &str) -> String {
-    std::process::Command::new(cmd)
-        .arg("--reportformat")
-        .arg("json_std")
-        .output()
-        .map(|output| {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            stdout.to_string()
-        })
-        .unwrap_or_else(|err| format!("Failed to execute {}: {}", cmd, err))
-}
-
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
-#[tauri::command]
-fn get_physical_volume_status() -> String {
-    get_command_result_to_json("pvs")
 }
 
 #[tauri::command]
@@ -157,7 +141,6 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![greet,
-            get_physical_volume_status,
             get_logical_volume_status,
             get_volume_group_status_string,
             get_volume_group_status_json,

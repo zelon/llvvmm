@@ -1,3 +1,4 @@
+use crate::executor;
 
 use serde::{Deserialize, Serialize};
 
@@ -57,14 +58,8 @@ pub fn parse_get_device_model_result(json_str: &str) -> String {
 }
 
 fn get_device_model(device_name: &str) -> String {
-    std::process::Command::new("lsblk")
-    .args(&["-J", "-o", "MODEL", device_name])
-    .output()
-    .map(|output| {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        parse_get_device_model_result(stdout.as_ref())
-    })
-    .unwrap_or_else(|err| format!("Failed to execute {}: {}", "lsblk", err))
+    let json = executor::execute("lsblk", vec!["-J", "-o", "MODEL", device_name]);
+    parse_get_device_model_result(&json)
 }
 
 #[cfg(test)]
