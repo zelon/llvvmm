@@ -10,25 +10,29 @@
 
   <body>
     <main class="container">
+      <div>
+        <div><h1>Physical Volumes</h1></div>
+        <div id="pv-status">pvs result will be here ffff</div>
+      </div>
       <table>
-        <tr>
-          <th><h1>Logical Volume Status</h1></th>
-        </tr>
-        <tr>
-          <td><p id="lv-status">lvdisplay result will be here</p><td>
-        </tr>
         <tr>
           <td><h1>Volume Group Status</h1></td>
         </tr>
         <tr>
           <td><pre id="vg-status">vgdisplay result will be here</pre></td>
         </tr>
+        <tr>
+          <th><h1>Logical Volume Status</h1></th>
+        </tr>
+        <tr>
+          <td><p id="lv-status">lvdisplay result will be here</p><td>
+        </tr>
       </table>
-
       <form class="row" id="greet-form">
         <input id="greet-input" placeholder="Enter a name..." />
-        <button type="submit">Greet</button>
+        <button type="submit">Refresh</button>
       </form>
+
       <p id="greet-msg"></p>
     </main>
   </body>
