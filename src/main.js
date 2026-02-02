@@ -10,16 +10,20 @@ function displayPhysicalVolumeView(data) {
     <thead>
       <tr>
         <th>PV Name</th>
-        <th>Size</th>
         <th>Device Model</th>
+        <th>VolumeGroup Name</th>
+        <th>Size</th>
+        <th>Free</th>
       </tr>
     </thead>
     <tbody>
       ${data.report[0].pv.map(pv => `
         <tr>
           <td>${pv.pv_name}</td>
-          <td>${pv.pv_size}</td>
           <td>${pv.device_model}</td>
+          <td>${pv.vg_name}</td>
+          <td>${pv.pv_size}</td>
+          <td>${pv.pv_free}</td>
         </tr>
       `).join('')}
     </tbody>
@@ -52,12 +56,11 @@ function displayVolumeGroupView(data) {
   return table;
 }
 
-
-async function greet() {
+async function refreshContent() {
   console.log(await invoke("get_detail_physical_volume_status"));
   // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
   pvStatusEl.replaceChildren(displayPhysicalVolumeView(JSON.parse(await invoke("get_detail_physical_volume_status"))));
-  vgStatusEl.textContent = await invoke("get_volume_group_status_json");
+  vgStatusEl.replaceChildren(displayVolumeGroupView(JSON.parse(await invoke("get_detail_volume_group_status"))));
   lvStatusEl.textContent = await invoke("get_logical_volume_status");
 }
 
@@ -67,6 +70,6 @@ window.addEventListener("DOMContentLoaded", () => {
   vgStatusEl = document.querySelector("#vg-status");
   document.querySelector("#greet-form").addEventListener("submit", (e) => {
     e.preventDefault();
-    greet();
+    refreshContent();
   });
 });

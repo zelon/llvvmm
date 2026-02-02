@@ -1,16 +1,8 @@
-mod pvs;
 mod executor;
+mod pvs;
+mod vgs;
 
 use serde::{Deserialize, Serialize};
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_get_volume_group_status_string() {
-        let c = 1 + 2;
-        assert_eq!(c, 3);
-    }
-}
 
 #[derive(Debug, Deserialize, Serialize)]
 struct VgsOutput {
@@ -70,43 +62,15 @@ fn get_detail_physical_volume_status() -> String {
 }
 
 #[tauri::command]
-fn get_logical_volume_status() -> String {
-    get_console_result_to_html("lvdisplay")
+fn get_detail_volume_group_status() -> String {
+    let vgs_json_result =crate::executor::execute("vgs", vec!["--reportformat", "json_std"]);
+    let vgs_output = vgs::parse_vgs_result(&vgs_json_result);
+    serde_json::to_string(&vgs_output).unwrap()
 }
 
 #[tauri::command]
-fn get_volume_group_status_string() -> String {
-    let json_data = std::process::Command::new("vgs")
-        .arg("--reportformat")
-        .arg("json_std")
-        .output()
-        .map(|output| {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            stdout.to_string()
-        })
-        .unwrap();
-
-    // JSON 파싱
-    let output: VgsOutput = serde_json::from_str(&json_data).unwrap();
-
-    // 데이터 접근
-    println!("Reports: {}", output.report.len());
-    
-    let mut volume_group_name = "Cannot find VG name".to_string();
-    for report in &output.report {
-        println!("\nVolume Groups in this report: {}", report.vg.len());
-        
-        for vg in &report.vg {
-            volume_group_name = vg.vg_name.clone();
-            println!("  VG Name: {}", vg.vg_name);
-            println!("  PV Count: {}", vg.pv_count);
-            println!("  LV Count: {}", vg.lv_count);
-            println!("  Size: {}", vg.vg_size);
-            println!("  Free: {}", vg.vg_free);
-            println!("  Attributes: {}", vg.vg_attr);
-        }
-    }
-    volume_group_name
+fn get_logical_volume_status() -> String {
+    get_console_result_to_html("lvdisplay")
 }
 
 #[tauri::command]
@@ -142,9 +106,9 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![greet,
             get_logical_volume_status,
-            get_volume_group_status_string,
             get_volume_group_status_json,
             get_detail_physical_volume_status,
+            get_detail_volume_group_status,
             get_ls_result])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

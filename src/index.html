@@ -6,34 +6,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tauri App</title>
     <script type="module" src="/main.js" defer></script>
+    <style>
+      table {
+        border: 1px solid lightgray;
+      }
+      td, th {
+        border: 1px solid black;
+      }
+    </style>
   </head>
 
   <body>
     <main class="container">
       <div>
+      <form class="row" id="greet-form">
+        <button type="submit">Refresh</button>
+      </form>
+      </div>
+
+      <div>
         <div><h1>Physical Volumes</h1></div>
         <div id="pv-status">pvs result will be here ffff</div>
       </div>
-      <table>
-        <tr>
-          <td><h1>Volume Group Status</h1></td>
-        </tr>
-        <tr>
-          <td><pre id="vg-status">vgdisplay result will be here</pre></td>
-        </tr>
-        <tr>
-          <th><h1>Logical Volume Status</h1></th>
-        </tr>
-        <tr>
-          <td><p id="lv-status">lvdisplay result will be here</p><td>
-        </tr>
+      <div>
+        <div><h1>Volume Group Status</h1></div>
+        <div id="vg-status">vgdisplay result will be here</div>
+      </div>
+      <div>
+        <div><h1>Logical Volume Status</h1></div>
+        <div id="lv-status">lvdisplay result will be here</div>
+      </div>
       </table>
-      <form class="row" id="greet-form">
-        <input id="greet-input" placeholder="Enter a name..." />
-        <button type="submit">Refresh</button>
-      </form>
-
-      <p id="greet-msg"></p>
     </main>
   </body>
 </html>
