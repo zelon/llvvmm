@@ -11,3 +11,6 @@ This template should help get you started developing with Tauri in vanilla HTML,
  llvvmm requires root rights because llvvmm uses lvdisplay command
  
 $ sudo env "PATH=$PATH" cargo tauri dev
+
+## Screenshot
+![Screenshot](https://raw.githubusercontent.com/zelon/llvvmm/main/ScreenShot.png)
