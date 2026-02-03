@@ -81,11 +81,11 @@ function displayLogicalVolumeView(data) {
               <thead>
                 <tr>
                   <th>Target</th>
-                  <th>fstype</th>
-                  <th>size</th>
-                  <th>used</th>
-                  <th>avail</th>
-                  <th>use%</th>
+                  <th>Filesystem Type</th>
+                  <th>Size</th>
+                  <th>Used</th>
+                  <th>Avail</th>
+                  <th>Use%</th>
                 </tr>
               </thead>
               <tbody>
@@ -96,7 +96,7 @@ function displayLogicalVolumeView(data) {
                     <td>${fs.size}</td>
                     <td>${fs.used}</td>
                     <td>${fs.avail}</td>
-                    <td>${fs.use_percent}</td>
+                    <td>${fs["use%"]}</td>
                   </tr>
                 `).join('')}
               </tbody>

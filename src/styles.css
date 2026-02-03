@@ -19,7 +19,6 @@
 
 .container {
   margin: 0;
-  padding-top: 10vh;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -53,6 +52,7 @@ a:hover {
 }
 
 h1 {
+  margin-top: 50px;;
   text-align: center;
 }
 
@@ -87,8 +87,24 @@ button {
   outline: none;
 }
 
+table {
+  border: 1px solid lightgray;
+}
+th, td {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+th {
+  background-color: #d0d0d0;
+}
+
 #greet-input {
   margin-right: 5px;
+}
+
+#pv-status, #vg-status, #lv-status {
+  display: flex;
+  justify-content: center;
 }
 
 @media (prefers-color-scheme: dark) {
