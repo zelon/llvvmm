@@ -1,42 +1,7 @@
 mod executor;
+mod lvs;
 mod pvs;
 mod vgs;
-
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Deserialize, Serialize)]
-struct VgsOutput {
-    report: Vec<Report>,
-    log: Vec<String>,  // 또는 Vec<LogEntry>
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct Report {
-    vg: Vec<VolumeGroup>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct VolumeGroup {
-    vg_name: String,
-    pv_count: u32,
-    lv_count: u32,
-    snap_count: u32,
-    vg_attr: String,
-    vg_size: String,
-    vg_free: String,
-}
-
-fn get_console_result_to_html(cmd: &str) -> String {
-    std::process::Command::new("sh")
-        .arg("-c")
-        .arg(cmd)
-        .output()
-        .map(|output| {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            stdout.to_string()
-        })
-        .unwrap_or_else(|err| format!("Failed to execute {}: {}", cmd, err))
-}
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -63,14 +28,16 @@ fn get_detail_physical_volume_status() -> String {
 
 #[tauri::command]
 fn get_detail_volume_group_status() -> String {
-    let vgs_json_result =crate::executor::execute("vgs", vec!["--reportformat", "json_std"]);
+    let vgs_json_result = crate::executor::execute("vgs", vec!["--reportformat", "json_std"]);
     let vgs_output = vgs::parse_vgs_result(&vgs_json_result);
     serde_json::to_string(&vgs_output).unwrap()
 }
 
 #[tauri::command]
 fn get_logical_volume_status() -> String {
-    get_console_result_to_html("lvdisplay")
+    let lvs_json_result = crate::executor::execute("lvs", vec!["--reportformat", "json_std"]);
+    let lvs_output = lvs::parse_lvs_result(&lvs_json_result);
+    serde_json::to_string(&lvs_output).unwrap()
 }
 
 #[tauri::command]

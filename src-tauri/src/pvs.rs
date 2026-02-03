@@ -67,7 +67,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_get_command_result_to_json() {
+    fn test_parse() {
         let json_str = r#"
       {
       "report": [
