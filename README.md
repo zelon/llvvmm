@@ -12,5 +12,9 @@ This template should help get you started developing with Tauri in vanilla HTML,
  
 $ sudo env "PATH=$PATH" cargo tauri dev
 
+## Release
+
+$ cargo tauri build
+
 ## Screenshot
 ![Screenshot](https://raw.githubusercontent.com/zelon/llvvmm/main/ScreenShot.png)
