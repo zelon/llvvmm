@@ -40,6 +40,7 @@ function displayVolumeGroupView(data) {
         <th>PV Count</th>
         <th>VG Size</th>
         <th>VG Free</th>
+        <th>PV Names</th>
       </tr>
     </thead>
     <tbody>
@@ -49,6 +50,7 @@ function displayVolumeGroupView(data) {
           <td>${vg.pv_count}</td>
           <td>${vg.vg_size}</td>
           <td>${vg.vg_free}</td>
+          <td>${vg.pv_names}</td>
         </tr>
       `).join('')}
     </tbody>
