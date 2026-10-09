@@ -28,6 +28,8 @@ struct LogicalVolume {
     copy_percent: f64,
     convert_lv: String,
     #[serde(default)]
+    raid_sync_action: String,
+    #[serde(default)]
     device_path: String,
     #[serde(default)]
     device_mapper: String,
@@ -89,7 +91,7 @@ mod tests {
       "report": [
           {
               "lv": [
-                  {"lv_name":"mirror_logical_volume", "vg_name":"data_pool", "lv_attr":"rwi-aor---", "lv_size":"1.70t", "pool_lv":"", "origin":"", "data_percent":null, "metadata_percent":null, "move_pv":"", "mirror_log":"", "copy_percent":23.49, "convert_lv":""}
+                  {"lv_name":"mirror_logical_volume", "vg_name":"data_pool", "lv_attr":"rwi-aor---", "lv_size":"1.70t", "pool_lv":"", "origin":"", "data_percent":null, "metadata_percent":null, "move_pv":"", "mirror_log":"", "copy_percent":23.49, "convert_lv":"", "raid_sync_action":"resync"}
               ]
           }
       ]

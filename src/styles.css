@@ -107,6 +107,14 @@ th {
   justify-content: center;
 }
 
+.sync-status-syncing {
+  background-color: #fff3cd;
+}
+
+.sync-status-synced {
+  background-color: #d4edda;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     color: #f6f6f6;
@@ -124,5 +132,15 @@ th {
   }
   button:active {
     background-color: #0f0f0f69;
+  }
+
+  .sync-status-syncing {
+    background-color: #5c4a05;
+    color: #f6f6f6;
+  }
+
+  .sync-status-synced {
+    background-color: #1e4620;
+    color: #f6f6f6;
   }
 }

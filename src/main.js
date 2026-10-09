@@ -58,6 +58,21 @@ function displayVolumeGroupView(data) {
   return table;
 }
 
+function getSyncStatus(lv) {
+  const isRaidOrMirror = lv.lv_attr.charAt(0) === 'r' || lv.lv_attr.charAt(0) === 'm';
+  if (!isRaidOrMirror) {
+    return { label: '-', className: '' };
+  }
+  const isSyncing = lv.raid_sync_action && lv.raid_sync_action !== 'idle';
+  if (isSyncing) {
+    return {
+      label: `Syncing ${lv.copy_percent}% (${lv.raid_sync_action})`,
+      className: 'sync-status-syncing',
+    };
+  }
+  return { label: 'Fully Synced (Healthy)', className: 'sync-status-synced' };
+}
+
 function displayLogicalVolumeView(data) {
   const table = document.createElement('table');
   table.innerHTML = `
@@ -68,16 +83,20 @@ function displayLogicalVolumeView(data) {
         <th>Device Path</th>
         <th>Device Mapper</th>
         <th>LogicalVolume Size</th>
+        <th>Sync Status</th>
       </tr>
     </thead>
     <tbody>
-      ${data.report[0].lv.map(lv => `
+      ${data.report[0].lv.map(lv => {
+        const syncStatus = getSyncStatus(lv);
+        return `
         <tr>
           <td>${lv.lv_name}</td>
           <td>${lv.vg_name}</td>
           <td>${lv.device_path}</td>
           <td>${lv.device_mapper}</td>
           <td>${lv.lv_size}</td>
+          <td class="${syncStatus.className}">${syncStatus.label}</td>
           <td>
             <table>
               <thead>
@@ -105,7 +124,8 @@ function displayLogicalVolumeView(data) {
             </table>
           </td>
         </tr>
-      `).join('')}
+      `;
+      }).join('')}
     </tbody>
   `;
   return table;

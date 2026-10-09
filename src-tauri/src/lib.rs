@@ -35,7 +35,10 @@ fn get_detail_volume_group_status() -> String {
 
 #[tauri::command]
 fn get_logical_volume_status() -> String {
-    let lvs_json_result = crate::executor::execute("lvs", vec!["--reportformat", "json_std"]);
+    let lvs_json_result = crate::executor::execute(
+        "lvs",
+        vec!["--reportformat", "json_std", "-o", "+raid_sync_action"],
+    );
     let lvs_output = lvs::parse_lvs_result(&lvs_json_result);
     serde_json::to_string(&lvs_output).unwrap()
 }
