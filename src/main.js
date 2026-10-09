@@ -4,6 +4,10 @@ let pvStatusEl;
 let lvStatusEl;
 let vgStatusEl;
 
+function formatDeviceType(deviceType) {
+  return deviceType ? deviceType.toUpperCase() : 'Unknown';
+}
+
 function displayPhysicalVolumeView(data) {
   const table = document.createElement('table');
   table.innerHTML = `
@@ -11,6 +15,7 @@ function displayPhysicalVolumeView(data) {
       <tr>
         <th>PV Name</th>
         <th>Device Model</th>
+        <th>Type</th>
         <th>VolumeGroup Name</th>
         <th>Size</th>
         <th>Free</th>
@@ -21,6 +26,7 @@ function displayPhysicalVolumeView(data) {
         <tr>
           <td>${pv.pv_name}</td>
           <td>${pv.device_model}</td>
+          <td>${formatDeviceType(pv.device_type)}</td>
           <td>${pv.vg_name}</td>
           <td>${pv.pv_size}</td>
           <td>${pv.pv_free}</td>

@@ -2,6 +2,13 @@ use crate::executor;
 
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum DeviceType {
+    Hdd,
+    Ssd,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PvsOutput {
     report: Vec<PvsReport>,
@@ -23,21 +30,30 @@ struct PhysicalVolume {
     pv_free: String,
     #[serde(default)]
     device_model: String,
+    #[serde(default)]
+    device_type: Option<DeviceType>,
 }
 
 pub fn parse_pvs_result(json_str: &str) -> PvsOutput {
     let mut output: PvsOutput = serde_json::from_str(&json_str).unwrap();
-    
-    // Set device_model for each PhysicalVolume
+
+    // Set device_model and device_type for each PhysicalVolume
     for report in &mut output.report {
         for pv in &mut report.pv {
-            pv.device_model = get_device_model(&pv.pv_name);
+            let device_info = get_device_info(&pv.pv_name);
+            pv.device_model = device_info.model;
+            pv.device_type = device_info.device_type;
         }
     }
     output
 }
 
-pub fn parse_get_device_model_result(json_str: &str) -> String {
+pub struct DeviceInfo {
+    model: String,
+    device_type: Option<DeviceType>,
+}
+
+pub fn parse_get_device_info_result(json_str: &str) -> DeviceInfo {
     #[derive(Deserialize)]
     struct LsblkOutput {
         blockdevices: Vec<BlockDevice>,
@@ -46,20 +62,32 @@ pub fn parse_get_device_model_result(json_str: &str) -> String {
     #[derive(Deserialize)]
     struct BlockDevice {
         model: Option<String>,
+        #[serde(rename = "rota")]
+        is_rotational: Option<bool>,
     }
 
     let output: LsblkOutput = serde_json::from_str(&json_str).unwrap();
     if let Some(device) = output.blockdevices.first() {
-        if let Some(model) = &device.model {
-            return model.clone();
-        }
+        let model = device
+            .model
+            .clone()
+            .unwrap_or_else(|| "Unknown Model".to_string());
+        let device_type = match device.is_rotational {
+            Some(true) => Some(DeviceType::Hdd),
+            Some(false) => Some(DeviceType::Ssd),
+            None => None,
+        };
+        return DeviceInfo { model, device_type };
     }
-    "Unknown Model".to_string()
+    DeviceInfo {
+        model: "Unknown Model".to_string(),
+        device_type: None,
+    }
 }
 
-fn get_device_model(device_name: &str) -> String {
-    let json = executor::execute("lsblk", vec!["-J", "-o", "MODEL", device_name]);
-    parse_get_device_model_result(&json)
+fn get_device_info(device_name: &str) -> DeviceInfo {
+    let json = executor::execute("lsblk", vec!["-J", "-o", "MODEL,ROTA", device_name]);
+    parse_get_device_info_result(&json)
 }
 
 #[cfg(test)]
@@ -89,23 +117,45 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_get_device_model_result() {
+    fn test_parse_get_device_info_result() {
         let json_str = r#"
 {
    "blockdevices": [
       {
-         "model": "Zelon"
+         "model": "Zelon",
+         "rota": false
       },{
-         "model": null
+         "model": null,
+         "rota": true
       },{
-         "model": null
+         "model": null,
+         "rota": null
       }
    ]
 }
 
         "#;
-        let device_model = parse_get_device_model_result(json_str);
-        assert_eq!(device_model, "Zelon");
+        let device_info = parse_get_device_info_result(json_str);
+        assert_eq!(device_info.model, "Zelon");
+        assert_eq!(device_info.device_type, Some(DeviceType::Ssd));
+    }
+
+    #[test]
+    fn test_parse_get_device_info_result_hdd() {
+        let json_str = r#"
+{
+   "blockdevices": [
+      {
+         "model": "Seagate",
+         "rota": true
+      }
+   ]
+}
+
+        "#;
+        let device_info = parse_get_device_info_result(json_str);
+        assert_eq!(device_info.model, "Seagate");
+        assert_eq!(device_info.device_type, Some(DeviceType::Hdd));
     }
 
 }
