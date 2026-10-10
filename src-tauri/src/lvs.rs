@@ -32,6 +32,8 @@ struct LogicalVolume {
     #[serde(default)]
     raid_sync_action: String,
     #[serde(default)]
+    segtype: String,
+    #[serde(default)]
     device_path: String,
     #[serde(default)]
     device_mapper: String,

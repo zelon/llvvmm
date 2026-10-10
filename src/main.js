@@ -102,9 +102,12 @@ function displayVolumeGroupView(data) {
   return table;
 }
 
+const NON_REDUNDANT_SEGTYPES = ['striped', 'raid0', 'raid0_meta'];
+
 function getSyncStatus(lv) {
   const isRaidOrMirror = lv.lv_attr.charAt(0) === 'r' || lv.lv_attr.charAt(0) === 'm';
-  if (!isRaidOrMirror) {
+  const isNonRedundant = NON_REDUNDANT_SEGTYPES.includes(lv.segtype);
+  if (!isRaidOrMirror && !isNonRedundant) {
     clearSyncBaseline(lv.lv_name);
     return { label: '-', className: '', isSyncing: false };
   }
@@ -117,6 +120,11 @@ function getSyncStatus(lv) {
   if (health === 'r' || health === 'm') {
     clearSyncBaseline(lv.lv_name);
     return { label: 'Needs Repair', className: 'sync-status-degraded', isSyncing: false };
+  }
+  // striped/raid0 have no copies to sync
+  if (isNonRedundant) {
+    clearSyncBaseline(lv.lv_name);
+    return { label: 'N/A', className: '', isSyncing: false };
   }
   if (lv.lv_attr.charAt(4) !== 'a') {
     clearSyncBaseline(lv.lv_name);

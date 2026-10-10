@@ -29,7 +29,7 @@ fn get_detail_volume_group_status() -> Result<String, String> {
 fn get_logical_volume_status() -> Result<String, String> {
     let lvs_json_result = crate::executor::execute(
         "lvs",
-        vec!["--reportformat", "json_std", "-o", "+raid_sync_action"],
+        vec!["--reportformat", "json_std", "-o", "+raid_sync_action,segtype"],
     );
     let lvs_output = lvs::parse_lvs_result(&lvs_json_result)?;
     serde_json::to_string(&lvs_output).map_err(|err| err.to_string())
