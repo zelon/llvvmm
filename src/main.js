@@ -4,6 +4,44 @@ let pvStatusEl;
 let lvStatusEl;
 let vgStatusEl;
 
+const SYNC_POLL_INTERVAL_MS = 10000;
+let syncPollTimer = null;
+const syncBaseline = {};
+
+function clearSyncBaseline(lvName) {
+  delete syncBaseline[lvName];
+}
+
+function formatDuration(totalSeconds) {
+  const seconds = Math.round(totalSeconds);
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m`;
+  return `${seconds}s`;
+}
+
+// Anchors the first observed sample for an LV and measures progress against
+// it, rather than consecutive 10s samples, since copy_percent barely moves
+// within a single poll interval.
+function estimateRemainingTime(lvName, currentPercent) {
+  const now = Date.now();
+  const baseline = syncBaseline[lvName];
+  if (!baseline) {
+    syncBaseline[lvName] = { percent: currentPercent, time: now };
+    return null;
+  }
+  const elapsedSeconds = (now - baseline.time) / 1000;
+  const percentDelta = currentPercent - baseline.percent;
+  if (elapsedSeconds < 30 || percentDelta <= 0) {
+    return null;
+  }
+  const remainingPercent = 100 - currentPercent;
+  return (remainingPercent * elapsedSeconds) / percentDelta;
+}
+
 function formatDeviceType(deviceType) {
   return deviceType ? deviceType.toUpperCase() : 'Unknown';
 }
@@ -67,30 +105,39 @@ function displayVolumeGroupView(data) {
 function getSyncStatus(lv) {
   const isRaidOrMirror = lv.lv_attr.charAt(0) === 'r' || lv.lv_attr.charAt(0) === 'm';
   if (!isRaidOrMirror) {
-    return { label: '-', className: '' };
+    clearSyncBaseline(lv.lv_name);
+    return { label: '-', className: '', isSyncing: false };
   }
   // lv_attr[8]: volume health, lv_attr[4]: state ('a' = active)
   const health = lv.lv_attr.charAt(8);
   if (health === 'p') {
-    return { label: 'Degraded (missing PV)', className: 'sync-status-degraded' };
+    clearSyncBaseline(lv.lv_name);
+    return { label: 'Degraded (missing PV)', className: 'sync-status-degraded', isSyncing: false };
   }
   if (health === 'r' || health === 'm') {
-    return { label: 'Needs Repair', className: 'sync-status-degraded' };
+    clearSyncBaseline(lv.lv_name);
+    return { label: 'Needs Repair', className: 'sync-status-degraded', isSyncing: false };
   }
   if (lv.lv_attr.charAt(4) !== 'a') {
-    return { label: 'Inactive', className: '' };
+    clearSyncBaseline(lv.lv_name);
+    return { label: 'Inactive', className: '', isSyncing: false };
   }
   const isSyncing = lv.raid_sync_action && lv.raid_sync_action !== 'idle';
   if (isSyncing) {
+    const remainingSeconds = estimateRemainingTime(lv.lv_name, lv.copy_percent);
+    const eta = remainingSeconds === null ? 'ETA calculating...' : `ETA ~${formatDuration(remainingSeconds)}`;
     return {
-      label: `Syncing ${lv.copy_percent ?? '?'}% (${lv.raid_sync_action})`,
+      label: `Syncing ${lv.copy_percent ?? '?'}% (${lv.raid_sync_action}) — ${eta}`,
       className: 'sync-status-syncing',
+      isSyncing: true,
     };
   }
-  return { label: 'Fully Synced (Healthy)', className: 'sync-status-synced' };
+  clearSyncBaseline(lv.lv_name);
+  return { label: 'Fully Synced (Healthy)', className: 'sync-status-synced', isSyncing: false };
 }
 
 function displayLogicalVolumeView(data) {
+  const rows = data.report[0].lv.map(lv => ({ lv, syncStatus: getSyncStatus(lv) }));
   const table = document.createElement('table');
   table.innerHTML = `
     <thead>
@@ -104,16 +151,14 @@ function displayLogicalVolumeView(data) {
       </tr>
     </thead>
     <tbody>
-      ${data.report[0].lv.map(lv => {
-        const syncStatus = getSyncStatus(lv);
-        return `
+      ${rows.map(({ lv, syncStatus }) => `
         <tr>
           <td>${lv.lv_name}</td>
           <td>${lv.vg_name}</td>
           <td>${lv.device_path}</td>
           <td>${lv.device_mapper}</td>
           <td>${lv.lv_size}</td>
-          <td class="${syncStatus.className}">${syncStatus.label}</td>
+          <td id="sync-status-${lv.lv_name}" class="${syncStatus.className}">${syncStatus.label}</td>
           <td>
             <table>
               <thead>
@@ -141,11 +186,37 @@ function displayLogicalVolumeView(data) {
             </table>
           </td>
         </tr>
-      `;
-      }).join('')}
+      `).join('')}
     </tbody>
   `;
+  updateSyncPolling(rows.some(({ syncStatus }) => syncStatus.isSyncing));
   return table;
+}
+
+async function refreshSyncStatuses() {
+  try {
+    const data = JSON.parse(await invoke("get_logical_volume_status"));
+    const rows = data.report[0].lv.map(lv => ({ lv, syncStatus: getSyncStatus(lv) }));
+    rows.forEach(({ lv, syncStatus }) => {
+      const cell = document.getElementById(`sync-status-${lv.lv_name}`);
+      if (cell) {
+        cell.textContent = syncStatus.label;
+        cell.className = syncStatus.className;
+      }
+    });
+    updateSyncPolling(rows.some(({ syncStatus }) => syncStatus.isSyncing));
+  } catch (err) {
+    console.error("get_logical_volume_status failed:", err);
+  }
+}
+
+function updateSyncPolling(shouldPoll) {
+  if (shouldPoll && !syncPollTimer) {
+    syncPollTimer = setInterval(refreshSyncStatuses, SYNC_POLL_INTERVAL_MS);
+  } else if (!shouldPoll && syncPollTimer) {
+    clearInterval(syncPollTimer);
+    syncPollTimer = null;
+  }
 }
 
 async function refreshSection(el, command, display) {
