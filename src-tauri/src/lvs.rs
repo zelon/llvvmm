@@ -5,7 +5,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Deserialize, Serialize)]
 pub struct LvsOutput {
     report: Vec<LvsReport>,
-    log: Vec<String>,
+    // LVM 경고/오류 메시지 객체 (log_type, log_message 등)
+    #[serde(default)]
+    log: Vec<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -25,7 +27,7 @@ struct LogicalVolume {
     metadata_percent: Option<f64>,
     move_pv: String,
     mirror_log: String,
-    copy_percent: f64,
+    copy_percent: Option<f64>,
     convert_lv: String,
     #[serde(default)]
     raid_sync_action: String,
@@ -37,8 +39,9 @@ struct LogicalVolume {
     filesystems: Vec<Filesystem>,
 }
 
-pub fn parse_lvs_result(json_str: &str) -> LvsOutput {
-    let mut output: LvsOutput = serde_json::from_str(&json_str).unwrap();
+pub fn parse_lvs_result(json_str: &str) -> Result<LvsOutput, String> {
+    let mut output: LvsOutput = serde_json::from_str(json_str)
+        .map_err(|err| format!("Failed to parse lvs output: {}\n{}", err, json_str))?;
 
     for report in &mut output.report {
         for lv in &mut report.lv {
@@ -49,7 +52,7 @@ pub fn parse_lvs_result(json_str: &str) -> LvsOutput {
             lv.filesystems = mount_info.filesystems;
         }
     }
-    output
+    Ok(output)
 }
 
 // findmnt --json -o  /dev/mapper/data_pool-mirror_logical_volume
@@ -71,8 +74,10 @@ struct Filesystem {
 }
 
 fn parse_get_mount_info_result(json_str: &str) -> FindMntOutput {
-    let output: FindMntOutput = serde_json::from_str(&json_str).unwrap();
-    output
+    // 마운트되지 않은 장치는 findmnt 가 아무것도 출력하지 않는다
+    serde_json::from_str(json_str).unwrap_or(FindMntOutput {
+        filesystems: Vec::new(),
+    })
 }
 
 fn get_mount_info(device_mapper: &str) -> FindMntOutput {
@@ -100,8 +105,29 @@ mod tests {
       ]
   }
        "#;
-        let lvs_output = parse_lvs_result(json_str);
+        let lvs_output = parse_lvs_result(json_str).unwrap();
         assert_eq!(lvs_output.report[0].lv.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_partial_lv_with_null_copy_percent() {
+        let json_str = r#"
+ {
+      "report": [
+          {
+              "lv": [
+                  {"lv_name":"mirror_logical_volume", "vg_name":"data_pool", "lv_attr":"rwi---r-p-", "lv_size":"1.70t", "pool_lv":"", "origin":"", "data_percent":null, "metadata_percent":null, "move_pv":"", "mirror_log":"", "copy_percent":null, "convert_lv":"", "raid_sync_action":""}
+              ]
+          }
+      ]
+      ,
+      "log": [
+          {"log_seq_num":1, "log_type":"warn", "log_context":"processing", "log_object_type":"vg", "log_object_name":"data_pool", "log_object_id":"", "log_object_group":"", "log_object_group_id":"", "log_message":"WARNING: VG data_pool is missing PV.", "log_errno":0, "log_ret_code":0}
+      ]
+  }
+       "#;
+        let lvs_output = parse_lvs_result(json_str).unwrap();
+        assert_eq!(lvs_output.report[0].lv[0].copy_percent, None);
     }
     
     #[test]

@@ -69,10 +69,21 @@ function getSyncStatus(lv) {
   if (!isRaidOrMirror) {
     return { label: '-', className: '' };
   }
+  // lv_attr[8]: volume health, lv_attr[4]: state ('a' = active)
+  const health = lv.lv_attr.charAt(8);
+  if (health === 'p') {
+    return { label: 'Degraded (missing PV)', className: 'sync-status-degraded' };
+  }
+  if (health === 'r' || health === 'm') {
+    return { label: 'Needs Repair', className: 'sync-status-degraded' };
+  }
+  if (lv.lv_attr.charAt(4) !== 'a') {
+    return { label: 'Inactive', className: '' };
+  }
   const isSyncing = lv.raid_sync_action && lv.raid_sync_action !== 'idle';
   if (isSyncing) {
     return {
-      label: `Syncing ${lv.copy_percent}% (${lv.raid_sync_action})`,
+      label: `Syncing ${lv.copy_percent ?? '?'}% (${lv.raid_sync_action})`,
       className: 'sync-status-syncing',
     };
   }
@@ -137,12 +148,22 @@ function displayLogicalVolumeView(data) {
   return table;
 }
 
+async function refreshSection(el, command, display) {
+  try {
+    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+    el.replaceChildren(display(JSON.parse(await invoke(command))));
+  } catch (err) {
+    console.error(`${command} failed:`, err);
+    const errorEl = document.createElement("pre");
+    errorEl.textContent = `${command} failed: ${err}`;
+    el.replaceChildren(errorEl);
+  }
+}
+
 async function refreshContent() {
-  console.log(await invoke("get_detail_physical_volume_status"));
-  // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-  pvStatusEl.replaceChildren(displayPhysicalVolumeView(JSON.parse(await invoke("get_detail_physical_volume_status"))));
-  vgStatusEl.replaceChildren(displayVolumeGroupView(JSON.parse(await invoke("get_detail_volume_group_status"))));
-  lvStatusEl.replaceChildren(displayLogicalVolumeView(JSON.parse(await invoke("get_logical_volume_status"))));
+  await refreshSection(pvStatusEl, "get_detail_physical_volume_status", displayPhysicalVolumeView);
+  await refreshSection(vgStatusEl, "get_detail_volume_group_status", displayVolumeGroupView);
+  await refreshSection(lvStatusEl, "get_logical_volume_status", displayLogicalVolumeView);
 }
 
 window.addEventListener("DOMContentLoaded", () => {

@@ -12,7 +12,9 @@ enum DeviceType {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PvsOutput {
     report: Vec<PvsReport>,
-    log: Vec<String>,
+    // LVM 경고/오류 메시지 객체 (log_type, log_message 등)
+    #[serde(default)]
+    log: Vec<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -34,8 +36,9 @@ struct PhysicalVolume {
     device_type: Option<DeviceType>,
 }
 
-pub fn parse_pvs_result(json_str: &str) -> PvsOutput {
-    let mut output: PvsOutput = serde_json::from_str(&json_str).unwrap();
+pub fn parse_pvs_result(json_str: &str) -> Result<PvsOutput, String> {
+    let mut output: PvsOutput = serde_json::from_str(json_str)
+        .map_err(|err| format!("Failed to parse pvs output: {}\n{}", err, json_str))?;
 
     // Set device_model and device_type for each PhysicalVolume
     for report in &mut output.report {
@@ -45,7 +48,7 @@ pub fn parse_pvs_result(json_str: &str) -> PvsOutput {
             pv.device_type = device_info.device_type;
         }
     }
-    output
+    Ok(output)
 }
 
 pub struct DeviceInfo {
@@ -66,8 +69,10 @@ pub fn parse_get_device_info_result(json_str: &str) -> DeviceInfo {
         is_rotational: Option<bool>,
     }
 
-    let output: LsblkOutput = serde_json::from_str(&json_str).unwrap();
-    if let Some(device) = output.blockdevices.first() {
+    let blockdevices = serde_json::from_str::<LsblkOutput>(json_str)
+        .map(|output| output.blockdevices)
+        .unwrap_or_default();
+    if let Some(device) = blockdevices.first() {
         let model = device
             .model
             .clone()
@@ -112,8 +117,30 @@ mod tests {
       ]
   }
         "#;
-        let pvs_output = parse_pvs_result(json_str);
+        let pvs_output = parse_pvs_result(json_str).unwrap();
         assert_eq!(pvs_output.report[0].pv.len(), 3);
+    }
+
+    #[test]
+    fn test_parse_with_log_messages() {
+        let json_str = r#"
+      {
+      "report": [
+          {
+              "pv": [
+                  {"pv_name":"/dev/sdb", "vg_name":"data_pool", "pv_fmt":"lvm2", "pv_attr":"a--", "pv_size":"<1.82t", "pv_free":"<345.78g"}
+              ]
+          }
+      ]
+      ,
+      "log": [
+          {"log_seq_num":1, "log_type":"warn", "log_context":"processing", "log_object_type":"pv", "log_object_name":"", "log_object_id":"", "log_object_group":"", "log_object_group_id":"", "log_message":"WARNING: test", "log_errno":0, "log_ret_code":1}
+      ]
+  }
+        "#;
+        let pvs_output = parse_pvs_result(json_str).unwrap();
+        assert_eq!(pvs_output.report[0].pv.len(), 1);
+        assert_eq!(pvs_output.log.len(), 1);
     }
 
     #[test]

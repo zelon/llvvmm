@@ -7,7 +7,9 @@ use std::collections::HashMap;
 #[derive(Debug, Deserialize, Serialize)]
 pub struct VgsOutput {
     report: Vec<VgsReport>,
-    log: Vec<String>,
+    // LVM 경고/오류 메시지 객체 (log_type, log_message 등)
+    #[serde(default)]
+    log: Vec<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -28,8 +30,9 @@ struct VolumeGroup {
     pv_names: String,
 }
 
-pub fn parse_vgs_result(json_str: &str) -> VgsOutput {
-    let mut output: VgsOutput = serde_json::from_str(&json_str).unwrap();
+pub fn parse_vgs_result(json_str: &str) -> Result<VgsOutput, String> {
+    let mut output: VgsOutput = serde_json::from_str(json_str)
+        .map_err(|err| format!("Failed to parse vgs output: {}\n{}", err, json_str))?;
 
     let pv_names_by_vg = get_pv_names_by_vg();
     for report in &mut output.report {
@@ -37,7 +40,7 @@ pub fn parse_vgs_result(json_str: &str) -> VgsOutput {
             vg.pv_names = pv_names_by_vg.get(&vg.vg_name).cloned().unwrap_or_default();
         }
     }
-    output
+    Ok(output)
 }
 
 fn get_pv_names_by_vg() -> HashMap<String, String> {
@@ -103,7 +106,7 @@ mod tests {
       ]
   }
         "#;
-        let vgs_output = parse_vgs_result(json_str);
+        let vgs_output = parse_vgs_result(json_str).unwrap();
         assert_eq!(vgs_output.report[0].vg.len(), 1);
     }
 

@@ -115,6 +115,10 @@ th {
   background-color: #d4edda;
 }
 
+.sync-status-degraded {
+  background-color: #f8d7da;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     color: #f6f6f6;
@@ -141,6 +145,11 @@ th {
 
   .sync-status-synced {
     background-color: #1e4620;
+    color: #f6f6f6;
+  }
+
+  .sync-status-degraded {
+    background-color: #5c1a1f;
     color: #f6f6f6;
   }
 }
