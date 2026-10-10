@@ -245,4 +245,5 @@ window.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     refreshContent();
   });
+  refreshContent();
 });
