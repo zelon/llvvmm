@@ -44,7 +44,9 @@ pub fn parse_pvs_result(json_str: &str) -> Result<PvsOutput, String> {
     for report in &mut output.report {
         for pv in &mut report.pv {
             let device_info = get_device_info(&pv.pv_name);
-            pv.device_model = device_info.model;
+            pv.device_model = device_info
+                .model
+                .unwrap_or_else(|| "Unknown Model".to_string());
             pv.device_type = device_info.device_type;
         }
     }
@@ -52,8 +54,10 @@ pub fn parse_pvs_result(json_str: &str) -> Result<PvsOutput, String> {
 }
 
 pub struct DeviceInfo {
-    model: String,
+    model: Option<String>,
     device_type: Option<DeviceType>,
+    // 부모 디바이스 이름 (파티션이면 해당 디스크, 예: sda1 -> sda)
+    parent_name: Option<String>,
 }
 
 pub fn parse_get_device_info_result(json_str: &str) -> DeviceInfo {
@@ -67,6 +71,7 @@ pub fn parse_get_device_info_result(json_str: &str) -> DeviceInfo {
         model: Option<String>,
         #[serde(rename = "rota")]
         is_rotational: Option<bool>,
+        pkname: Option<String>,
     }
 
     let blockdevices = serde_json::from_str::<LsblkOutput>(json_str)
@@ -75,23 +80,53 @@ pub fn parse_get_device_info_result(json_str: &str) -> DeviceInfo {
     if let Some(device) = blockdevices.first() {
         let model = device
             .model
-            .clone()
-            .unwrap_or_else(|| "Unknown Model".to_string());
+            .as_deref()
+            .map(str::trim)
+            .filter(|model| !model.is_empty())
+            .map(str::to_string);
         let device_type = match device.is_rotational {
             Some(true) => Some(DeviceType::Hdd),
             Some(false) => Some(DeviceType::Ssd),
             None => None,
         };
-        return DeviceInfo { model, device_type };
+        return DeviceInfo {
+            model,
+            device_type,
+            parent_name: device.pkname.clone(),
+        };
     }
     DeviceInfo {
-        model: "Unknown Model".to_string(),
+        model: None,
         device_type: None,
+        parent_name: None,
     }
 }
 
 fn get_device_info(device_name: &str) -> DeviceInfo {
-    let json = executor::execute("lsblk", vec!["-J", "-o", "MODEL,ROTA", device_name]);
+    // 파티션 등은 MODEL 이 비어 있으므로 PKNAME 을 따라 부모 디스크의 모델명을 찾는다
+    const MAX_PARENT_DEPTH: usize = 4;
+
+    let mut info = query_device_info(device_name);
+    let mut parent_name = info.parent_name.clone();
+    for _ in 0..MAX_PARENT_DEPTH {
+        if info.model.is_some() {
+            break;
+        }
+        let Some(name) = parent_name else {
+            break;
+        };
+        let parent_info = query_device_info(&format!("/dev/{}", name));
+        info.model = parent_info.model;
+        if info.device_type.is_none() {
+            info.device_type = parent_info.device_type;
+        }
+        parent_name = parent_info.parent_name;
+    }
+    info
+}
+
+fn query_device_info(device_name: &str) -> DeviceInfo {
+    let json = executor::execute("lsblk", vec!["-J", "-o", "MODEL,ROTA,PKNAME", device_name]);
     parse_get_device_info_result(&json)
 }
 
@@ -163,7 +198,7 @@ mod tests {
 
         "#;
         let device_info = parse_get_device_info_result(json_str);
-        assert_eq!(device_info.model, "Zelon");
+        assert_eq!(device_info.model.as_deref(), Some("Zelon"));
         assert_eq!(device_info.device_type, Some(DeviceType::Ssd));
     }
 
@@ -181,8 +216,28 @@ mod tests {
 
         "#;
         let device_info = parse_get_device_info_result(json_str);
-        assert_eq!(device_info.model, "Seagate");
+        assert_eq!(device_info.model.as_deref(), Some("Seagate"));
         assert_eq!(device_info.device_type, Some(DeviceType::Hdd));
+    }
+
+    #[test]
+    fn test_parse_get_device_info_result_partition() {
+        let json_str = r#"
+{
+   "blockdevices": [
+      {
+         "model": null,
+         "rota": false,
+         "pkname": "sda"
+      }
+   ]
+}
+
+        "#;
+        let device_info = parse_get_device_info_result(json_str);
+        assert_eq!(device_info.model, None);
+        assert_eq!(device_info.device_type, Some(DeviceType::Ssd));
+        assert_eq!(device_info.parent_name.as_deref(), Some("sda"));
     }
 
 }
